@@ -1,5 +1,13 @@
 # 미니3: BuildWise AI
 
+## 다시 실행하는 순서
+
+1. 수집 스크립트 01_collect_p1.py와 02_collect.py는 다시 실행하지 않음
+2. scripts/03_clean.py 실행 → data/clean.csv 갱신
+3. scripts/04_stats.py 실행 → 기초 통계 확인
+4. scripts/05_hist.py와 scripts/06_by_category.py 실행 → 필수 차트 갱신
+5. scripts/07_export_json.py 실행 → data/data.json 갱신
+
 ## ① 환경 확인 출력
 
 ```
