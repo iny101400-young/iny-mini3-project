@@ -1,0 +1,86 @@
+[
+  {
+    "name": "AI PDF Reader",
+    "price": 0.99,
+    "citation": "Yes",
+    "detail_url": "https://www.itechguides.com/products/ai-pdf-reader/"
+  },
+  {
+    "name": "Anara",
+    "price": 10.0,
+    "citation": "Yes",
+    "detail_url": "https://www.itechguides.com/products/anara/"
+  },
+  {
+    "name": "docAnalyzer",
+    "price": 8.0,
+    "citation": "Yes",
+    "detail_url": "https://www.itechguides.com/products/docanalyzer/"
+  },
+  {
+    "name": "PDF.chat",
+    "price": 5.0,
+    "citation": "Yes",
+    "detail_url": "https://www.itechguides.com/products/pdf-chat/"
+  },
+  {
+    "name": "Sharly AI",
+    "price": 12.5,
+    "citation": "Yes",
+    "detail_url": "https://www.itechguides.com/products/sharly-ai/"
+  },
+  {
+    "name": "pdfAssistant.ai",
+    "price": 9.99,
+    "citation": "No",
+    "detail_url": "https://www.itechguides.com/products/pdfassistant-ai/"
+  },
+  {
+    "name": "AskYourPDF",
+    "price": 11.99,
+    "citation": "No",
+    "detail_url": "https://www.itechguides.com/products/askyourpdf/"
+  },
+  {
+    "name": "ChatDOC",
+    "price": 8.99,
+    "citation": "Yes",
+    "detail_url": "https://www.itechguides.com/products/chatdoc/"
+  },
+  {
+    "name": "Doxy",
+    "price": 4.99,
+    "citation": "Yes",
+    "detail_url": "https://www.itechguides.com/products/doxy/"
+  },
+  {
+    "name": "ResearchPal AI Paraphraser",
+    "price": 8.25,
+    "citation": "Yes",
+    "detail_url": "https://www.itechguides.com/products/researchpal-ai-paraphraser/"
+  },
+  {
+    "name": "Explainpaper",
+    "price": 16.0,
+    "citation": "Yes",
+    "detail_url": "https://www.itechguides.com/products/explainpaper/"
+  },
+  {
+    "name": "Audeus",
+    "price": 9.92,
+    "citation": "Yes",
+    "detail_url": "https://www.itechguides.com/products/audeus/"
+  },
+  {
+    "name": "PDF.ai API",
+    "price": 49.0,
+    "citation": "No",
+    "detail_url": "https://www.itechguides.com/products/pdf-ai-api/"
+  },
+  {
+    "name": "Paperpal",
+    "price": 12.0,
+    "citation": "No",
+    "detail_url": "https://www.itechguides.com/products/paperpal/"
+  }
+]
