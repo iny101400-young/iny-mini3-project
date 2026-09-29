@@ -11,6 +11,8 @@ const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/interaction
 const MODEL = "gemini-3.5-flash-lite";
 // AI에게 넘길 후보 최대 개수 (M12 명세)
 const MAX_CANDIDATES = 5;
+// 추천 이유 한 줄의 최대 글자 수 (M13 도전, 공백 포함)
+const MAX_REASON_CHARS = 40;
 
 // data.json에 실제로 있는 citation 값 목록
 const CITATION_VALUES = [...new Set(items.map((item) => item.citation))];
@@ -20,6 +22,7 @@ const SYSTEM_INSTRUCTION = [
   "너는 PDF AI 도구 후보 표에서 1개를 고르는 도우미다.",
   "반드시 입력으로 받은 candidates 안에서만 1개를 고른다. name은 후보 표의 이름을 글자 그대로 쓴다.",
   "추천 이유는 정확히 2줄이다. 이유에는 후보 표의 price와 citation 값만 사용한다.",
+  `이유 한 줄은 공백을 포함해 ${MAX_REASON_CHARS}자 이하로 짧게 쓴다.`,
   "이유에는 추천한 후보의 price를 $숫자 형태로, citation을 Yes 또는 No 그대로 적는다.",
   "price 외의 숫자(순위, 개수, 비율, 예산 등)는 이유에 쓰지 않는다.",
   "후보 표에 없는 기능, 성능, 인기, 품질, 사용 후기는 만들어 말하지 않는다.",
@@ -72,6 +75,8 @@ function verify(result, candidates) {
   const reasons = result.reasons.map((line) => (typeof line === "string" ? line.trim() : ""));
   // 빈 줄이 있으면 실패
   if (reasons.some((line) => line === "")) return null;
+  // 한 줄이라도 40자를 넘으면 실패 (글자 단위로 센다: 한글·영문·기호·공백 모두 1자)
+  if (reasons.some((line) => [...line].length > MAX_REASON_CHARS)) return null;
   // 추천 이름이 전달한 후보 안에 글자 그대로 있어야 한다
   const picked = candidates.find((c) => c.name === result.name);
   // 없으면 실패
@@ -137,7 +142,7 @@ module.exports = async function handler(req, res) {
     type: "object",
     properties: {
       name: { type: "string", enum: candidates.map((c) => c.name) },
-      reasons: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 2 },
+      reasons: { type: "array", items: { type: "string", maxLength: MAX_REASON_CHARS }, minItems: 2, maxItems: 2 },
     },
     required: ["name", "reasons"],
   };

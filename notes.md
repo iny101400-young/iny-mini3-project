@@ -242,3 +242,24 @@ JSON 14개 = 화면 14개
 - 같은 조건이면 같은 추천이 나와야 하나: 예
 - 이유: 같은 예산 · Citation 조건과 같은 후보 목록인데 추천이 매번 바뀌면 결과를 비교하고 검증하기 어려움
 - 다음 칸 프롬프트에 추가할 것: 전달한 후보의 name · price · citation만 사용하고, 같은 입력에서는 같은 기준으로 1개를 고르도록 요청
+
+## M13 AI 추천 동작본
+
+배포 주소 (Domains) : https://iny-pdf-compare.vercel.app
+
+환경변수 GEMINI_API_KEY - Production 등록 · Redeploy 완료
+
+| 조건 | AI에게 넘긴 후보 | 추천된 이름 | 후보 안? |
+|---|---|---|---|
+| 예산 10 · Citation Yes | 가격 낮은 순 최대 5개 | AI PDF Reader | 예 |
+| 예산 10 · Citation No | 가격 낮은 순 최대 5개 | pdfAssistant.ai | 예 |
+
+두 조건의 추천이 서로 다른가 : 예
+
+후보 없음 (예산 9 · Citation No) - AI를 부르지 않고 M10 안내만 표시
+
+같은 조건 반복 - 예산 10 · Citation Yes로 두 번 눌러도 AI PDF Reader로 동일
+
+소스 보기에서 Gemini API 키 값 : 안 보임
+.env 주소 직접 접근 : 404
+/api/recommend.js 직접 접근 : 소스 코드 노출 안 됨
