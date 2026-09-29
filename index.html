@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PDF AI 비교 도우미</title>
+  <style>
+    /* 색과 간격 값 모음 */
+    :root {
+      --bg: #fcfcfb;
+      --card: #ffffff;
+      --line: #e4e3df;
+      --text: #0b0b0b;
+      --muted: #52514e;
+      --accent: #2a78d6;
+    }
+    /* 페이지 기본 글꼴과 바탕 */
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      line-height: 1.5;
+    }
+    /* 가운데 정렬된 본문 폭 */
+    main { max-width: 960px; margin: 0 auto; padding: 32px 16px 48px; }
+    h1 { margin: 0 0 4px; font-size: 28px; }
+    #count { margin: 0 0 16px; color: var(--muted); }
+    /* 정렬 버튼 줄 */
+    #sort { display: flex; gap: 8px; margin: 0 0 20px; }
+    #sort button {
+      font: inherit; font-size: 14px;
+      padding: 6px 14px;
+      border: 1px solid var(--line); border-radius: 999px;
+      background: var(--card); color: var(--text); cursor: pointer;
+    }
+    /* 지금 선택된 정렬 버튼 */
+    #sort button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+    /* 조건 필터 줄 */
+    #filter { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin: 0 0 16px; }
+    #filter label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--muted); }
+    #filter input, #filter select {
+      font: inherit; font-size: 15px; color: var(--text);
+      padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card);
+    }
+    #filter input { width: 160px; }
+    #filter button {
+      font: inherit; font-size: 15px; font-weight: 600;
+      padding: 7px 18px; border: 0; border-radius: 8px;
+      background: var(--accent); color: #fff; cursor: pointer;
+    }
+    /* 후보 0개 안내 */
+    #empty {
+      margin: 0 0 16px; padding: 16px;
+      border: 1px dashed var(--line); border-radius: 10px;
+      background: var(--card); white-space: pre-line;
+    }
+    /* 카드 목록: 화면 폭에 맞춰 여러 줄로 배치 */
+    #cards {
+      list-style: none; margin: 0; padding: 0;
+      display: grid; gap: 16px;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 16px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .card h2 { margin: 0; font-size: 18px; }
+    .card dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; }
+    .card dt { color: var(--muted); }
+    .card dd { margin: 0; }
+    .card a { margin-top: auto; color: var(--accent); font-weight: 600; text-decoration: none; }
+    .card a:hover { text-decoration: underline; }
+    #error { color: #b3261e; }
+    /* M11 근거 영역 */
+    #evidence { margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--line); }
+    #evidence h2 { margin: 0 0 16px; font-size: 22px; }
+    #evidence figure {
+      margin: 0 0 20px; padding: 12px;
+      background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    }
+    /* 이미지가 화면 폭을 넘지 않고 비율을 유지한 채 줄어든다 */
+    #evidence img { display: block; width: 100%; max-width: 720px; height: auto; margin: 0 auto; }
+    #evidence figcaption { margin-top: 8px; }
+    #evidence .limit { margin: 0 0 8px; }
+    #evidence .source { margin: 0; color: var(--muted); font-size: 14px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>PDF AI 비교 도우미</h1>
+    <!-- 총 개수는 data.json을 읽은 뒤 채운다 -->
+    <p id="count">불러오는 중…</p>
+    <p id="error" hidden></p>
+    <!-- M10 조건 필터 ([적용]을 눌러야만 걸린다) -->
+    <form id="filter" hidden>
+      <label>예산($)
+        <input id="budget" type="number" min="0" step="0.01" placeholder="비우면 조건 없음">
+      </label>
+      <label>출처 인용
+        <!-- 선택지는 data.json의 citation 실제 값으로 채운다 -->
+        <select id="citation">
+          <option value="">(조건 없음)</option>
+        </select>
+      </label>
+      <button type="submit">적용</button>
+    </form>
+    <!-- 가격 정렬 버튼 (data.json의 price 숫자 기준) -->
+    <div id="sort" hidden>
+      <button type="button" data-order="asc" aria-pressed="false">가격 낮은 순</button>
+      <button type="button" data-order="desc" aria-pressed="false">가격 높은 순</button>
+    </div>
+    <!-- 후보가 0개일 때 보여 줄 안내 -->
+    <p id="empty" hidden></p>
+    <!-- 카드는 data.json 항목 수만큼 스크립트가 만든다 -->
+    <ul id="cards"></ul>
+
+    <!-- M11 근거 영역 (문장과 숫자는 notes.md M11 기록 그대로) -->
+    <section id="evidence" aria-labelledby="evidence-title">
+      <h2 id="evidence-title">근거</h2>
+      <figure>
+        <img src="charts/hist.png" alt="PDF AI 월 가격 분포 히스토그램 (n = 14)" width="1200" height="750">
+        <figcaption>관찰 - 가격 $0~10 구간이 8개로 가장 많음</figcaption>
+      </figure>
+      <figure>
+        <img src="charts/by_category.png" alt="출처 인용 여부별 평균 월 가격 막대그래프 (n = 14)" width="900" height="750">
+        <figcaption>관찰 - 현재 표본에서 Citation No 평균 가격은 $20.75, Yes는 $8.46으로 나타남</figcaption>
+      </figure>
+      <p class="limit">한계 - Citation No는 4개뿐이고 $49 항목이 포함되어 평균에 영향을 받으므로, Citation 여부 때문에 가격이 달라진다고 해석할 수 없음</p>
+      <p class="source">출처 - iTechGuides 「Best AI PDF Assistants in 2026: Researched &amp; Ranked」 · 2026-09-28 수집 · USD 월 시작 가격으로 비교 가능한 14개</p>
+    </section>
+  </main>
+
+  <script>
+    // 카드 한 장을 만드는 함수
+    function makeCard(item) {
+      // 카드 틀(li)을 만든다
+      const li = document.createElement("li");
+      // 카드 모양 클래스를 붙인다
+      li.className = "card";
+
+      // 제품 이름 제목을 만든다
+      const title = document.createElement("h2");
+      // data.json의 name을 그대로 넣는다
+      title.textContent = item.name;
+
+      // 가격·출처 인용을 담을 목록을 만든다
+      const dl = document.createElement("dl");
+      // [항목 이름, 보여 줄 값] 두 줄을 만든다 (price 앞에 $를 한 번만 붙인다)
+      const rows = [["가격", "$" + item.price], ["출처 인용", item.citation]];
+      // 두 줄을 하나씩 목록에 넣는다
+      for (const [label, value] of rows) {
+        // 항목 이름 칸을 만든다
+        const dt = document.createElement("dt");
+        // 항목 이름을 넣는다
+        dt.textContent = label;
+        // 값 칸을 만든다
+        const dd = document.createElement("dd");
+        // 값을 그대로 넣는다
+        dd.textContent = value;
+        // 두 칸을 목록에 붙인다
+        dl.append(dt, dd);
+      }
+
+      // 원래 화면으로 가는 링크를 만든다
+      const link = document.createElement("a");
+      // 링크 주소는 data.json의 detail_url 그대로
+      link.href = item.detail_url;
+      // 새 창에서 열리게 한다
+      link.target = "_blank";
+      // 새 창이 이 페이지를 건드리지 못하게 한다
+      link.rel = "noopener noreferrer";
+      // 링크 글자를 넣는다
+      link.textContent = "원래 화면 보기";
+
+      // 제목·목록·링크를 카드에 붙인다
+      li.append(title, dl, link);
+      // 완성한 카드를 돌려준다
+      return li;
+    }
+
+    // data.json을 읽어 화면을 채우는 함수
+    async function render() {
+      // 개수 표시 칸을 찾는다
+      const countEl = document.getElementById("count");
+      // 오류 표시 칸을 찾는다
+      const errorEl = document.getElementById("error");
+      try {
+        // data.json을 요청한다
+        const res = await fetch("data/data.json");
+        // 응답이 실패면 오류로 처리한다
+        if (!res.ok) throw new Error("data.json 응답 " + res.status);
+        // JSON 목록으로 바꾼다
+        const items = await res.json();
+        // 실제 항목 수로 "총 N개"를 적는다
+        countEl.textContent = "총 " + items.length + "개";
+        // 카드 목록 칸을 찾는다
+        const list = document.getElementById("cards");
+        // 후보 0개 안내 칸을 찾는다
+        const emptyEl = document.getElementById("empty");
+        // 지금 화면에 보여 주는 후보 목록 (처음에는 data.json 전체, 원본은 바꾸지 않는다)
+        let shown = items;
+
+        // 주어진 목록으로 카드를 다시 그리는 함수
+        function draw(arr) {
+          // 기존 카드를 모두 지우고 목록 순서대로 다시 만든다 (값은 바꾸지 않는다)
+          list.replaceChildren(...arr.map(makeCard));
+        }
+        // 처음에는 data.json 순서 그대로 그린다
+        draw(shown);
+
+        // 정렬 버튼 줄을 찾는다
+        const sortBar = document.getElementById("sort");
+        // 데이터를 읽었으니 정렬 버튼을 보여 준다
+        sortBar.hidden = false;
+        // 선택된 정렬 버튼 표시를 바꾸는 함수 (order가 없으면 모두 해제)
+        function markSort(order) {
+          // 버튼마다 선택 여부를 적는다
+          for (const b of sortBar.querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.order === order));
+        }
+        // price 숫자로 정렬한 복사본을 돌려주는 함수
+        function sortByPrice(arr, order) {
+          // 낮은 순이면 1, 높은 순이면 -1을 곱해 비교 방향을 정한다
+          const dir = order === "asc" ? 1 : -1;
+          // 원본은 그대로 두고 복사본을 정렬한다
+          return [...arr].sort((a, b) => (a.price - b.price) * dir);
+        }
+        // 정렬 버튼을 하나씩 돈다
+        for (const button of sortBar.querySelectorAll("button")) {
+          // 버튼을 누르면 지금 보이는 후보의 순서만 바꾼다
+          button.addEventListener("click", () => {
+            // 지금 보이는 후보를 누른 방향으로 정렬한다
+            shown = sortByPrice(shown, button.dataset.order);
+            // 정렬된 순서로 다시 그린다
+            draw(shown);
+            // 누른 버튼만 선택 상태로 표시한다
+            markSort(button.dataset.order);
+          });
+        }
+
+        // 조건 필터 칸들을 찾는다
+        const form = document.getElementById("filter");
+        // 예산 입력 칸
+        const budgetEl = document.getElementById("budget");
+        // 출처 인용 선택 칸
+        const citationEl = document.getElementById("citation");
+        // data.json에 실제로 있는 citation 값을 처음 나온 순서대로 모은다
+        const citationValues = [...new Set(items.map((item) => item.citation))];
+        // 그 값들로 선택지를 만든다
+        for (const value of citationValues) citationEl.add(new Option(value, value));
+        // 데이터를 읽었으니 필터 줄을 보여 준다
+        form.hidden = false;
+
+        // 한 후보가 예산 조건을 만족하는지 (예산이 null이면 조건 없음, 같은 값 포함)
+        const inBudget = (item, budget) => budget === null || item.price <= budget;
+        // 한 후보가 citation 조건을 만족하는지 (빈칸이면 조건 없음)
+        const inCitation = (item, citation) => citation === "" || item.citation === citation;
+
+        // 지금 입력된 조건으로 후보를 다시 계산해 그리는 함수 ([적용]과 값 변경이 같이 쓴다)
+        function applyFilter() {
+          // 예산 칸 글자를 가져온다 (앞뒤 공백 제거)
+          const budgetText = budgetEl.value.trim();
+          // 비어 있으면 조건 없음(null), 아니면 숫자로 바꾼다
+          const budget = budgetText === "" ? null : Number(budgetText);
+          // 선택한 citation 값을 가져온다 (빈칸이면 조건 없음)
+          const citation = citationEl.value;
+
+          // 두 조건을 모두 만족하는 후보만 남기고 price 낮은 순으로 정렬한다
+          shown = sortByPrice(items.filter((item) => inBudget(item, budget) && inCitation(item, citation)), "asc");
+          // 남은 후보로 다시 그린다
+          draw(shown);
+          // 결과가 낮은 순이므로 낮은 순 버튼을 선택 상태로 표시한다
+          markSort("asc");
+          // 개수를 "조건에 맞는 N개 / 전체 M개"로 적는다
+          countEl.textContent = "조건에 맞는 " + shown.length + "개 / 전체 " + items.length + "개";
+
+          // 후보가 있으면 안내를 숨기고 끝낸다
+          if (shown.length > 0) {
+            // 안내 칸을 숨긴다
+            emptyEl.hidden = true;
+            // 여기서 끝낸다
+            return;
+          }
+
+          // 안내 문장 줄을 모을 목록
+          const lines = ["현재 조건에 맞는 후보가 없습니다."];
+          // 예산이 걸려 있으면 "예산만 올리면" 경우를 계산한다
+          if (budget !== null) {
+            // 현재 citation 조건만 만족하는 후보의 가격을 모은다 (예산은 무시)
+            const prices = items.filter((item) => inCitation(item, citation)).map((item) => item.price);
+            // 그런 후보가 있으면 가장 싼 가격을 적는다
+            if (prices.length > 0) lines.push("예산을 $" + Math.min(...prices) + "까지 올리면 후보가 생깁니다.");
+            // 없으면 예산을 올려도 소용없다고 적는다
+            else lines.push("예산을 올려도 현재 출처 인용 조건에 맞는 후보가 없습니다.");
+          }
+          // citation이 걸려 있으면 "citation 조건만 풀면" 경우를 계산한다
+          if (citation !== "") {
+            // 현재 예산 조건만 만족하는 후보 수를 센다 (citation은 무시)
+            const y = items.filter((item) => inBudget(item, budget)).length;
+            // 그 개수를 적는다
+            lines.push("출처 인용 조건을 풀면 " + y + "개가 보입니다.");
+          }
+          // 안내 문장을 줄바꿈으로 이어 넣는다
+          emptyEl.textContent = lines.join("\n");
+          // 안내 칸을 보여 준다
+          emptyEl.hidden = false;
+        }
+
+        // [적용]을 누르면 필터를 실행한다
+        form.addEventListener("submit", (event) => {
+          // 페이지가 새로 고쳐지지 않게 막는다
+          event.preventDefault();
+          // 같은 필터 함수를 실행한다
+          applyFilter();
+        });
+        // 예산 값이 바뀔 때마다 바로 다시 계산한다
+        budgetEl.addEventListener("input", applyFilter);
+        // 출처 인용 선택이 바뀌면 바로 다시 계산한다
+        citationEl.addEventListener("change", applyFilter);
+      } catch (err) {
+        // 개수 칸을 비운다
+        countEl.textContent = "";
+        // 오류 문구를 보여 준다
+        errorEl.hidden = false;
+        // 무엇이 실패했는지 적는다
+        errorEl.textContent = "데이터를 불러오지 못했습니다: " + err.message;
+      }
+    }
+
+    // 페이지가 열리면 바로 화면을 채운다
+    render();
+  </script>
+</body>
+</html>
