@@ -573,12 +573,16 @@
               nameEl.textContent = "AI 추천: " + data.name;
               // 이유 2줄 목록을 만든다
               const list = document.createElement("ul");
+              // 추천한 후보의 citation이 Yes인지 (화면 표시에만 쓴다)
+              const citesSource = candidates.find((c) => c.name === data.name).citation === "Yes";
               // 이유를 한 줄씩 넣는다
               for (const reason of data.reasons) {
                 // 목록 한 줄을 만든다
                 const li = document.createElement("li");
+                // citation이 Yes면 citation을 설명하는 줄(가격이 없는 줄)을 쉬운 문장으로 바꿔 보여 준다
+                const isCitationLine = citesSource && /citation/i.test(reason) && !reason.includes("$");
                 // 이유 글자를 넣는다
-                li.textContent = reason;
+                li.textContent = isCitationLine ? "출처 인용 기능을 지원합니다." : reason;
                 // 목록에 붙인다
                 list.append(li);
               }
