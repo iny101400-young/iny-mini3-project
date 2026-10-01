@@ -75,3 +75,35 @@ AI 추천: 추천 이름과 이유 속 가격·Citation 값을 `data/data.json`�
 - `citation`의 `No`는 '지원하지 않음'이라는 뜻이 아닙니다. 원문에 Source citations 표시가 확인되지 않은 경우입니다.
 - 현재 표본에서 Citation No 평균 가격($20.75)이 Yes($8.46)보다 높게 나타나지만, No는 4개뿐이고 $49 항목(PDF.ai API)이 평균에 영향을 줍니다. 가격과 Citation의 차이는 관찰일 뿐이며, Citation 여부 때문에 가격이 달라진다고 해석할 수 없습니다.
 - AI 추천은 외부 서비스인 Gemini API를 부르므로 그 서비스의 상태나 사용 한도에 따라 추천이 나오지 않을 수 있습니다.
+
+## 실행 안내
+
+### 1. 다시 모으기
+
+- 프로젝트 루트(mini3-project)에서 실행
+- 맥은 python3 사용
+
+| 순서 | 파일 | 만드는 것 | 명령 | 확인 |
+|---|---|---|---|---|
+| 1 | `scripts/02_collect.py` | `data/raw.csv` | `python3 scripts/02_collect.py` | 확인 안 함 |
+| 2 | `scripts/03_clean.py` | `data/clean.csv` | `python3 scripts/03_clean.py` | 확인함 · 14행 |
+| 3 | `scripts/05_hist.py` | `charts/hist.png` | `python3 scripts/05_hist.py` | 확인 안 함 |
+| 4 | `scripts/06_by_category.py` | `charts/by_category.png` | `python3 scripts/06_by_category.py` | 확인 안 함 |
+| 5 | `scripts/07_export_json.py` | `data/data.json` | `python3 scripts/07_export_json.py` | 확인 안 함 |
+
+`scripts/02_collect.py` : 사이트에 요청을 보낸다 · 페이지 수를 늘리지 않는다
+
+### 2. 화면에 반영하기
+
+- 새로 만든 `data/data.json`과 `charts/` 결과(`charts/hist.png`, `charts/by_category.png`)를 저장합니다.
+- 변경 파일을 커밋하고 `origin/main`에 push합니다.
+- Vercel이 다시 배포합니다.
+- 배포 주소 https://iny-pdf-compare.vercel.app 에서 확인합니다.
+
+### 3. AI 연결
+
+- AI 추천은 Gemini API를 사용합니다. 호출 위치는 `api/recommend.js`이며, 서버 환경변수 `GEMINI_API_KEY`에서 열쇠를 읽습니다.
+- Vercel Project Settings → Environment Variables에 `GEMINI_API_KEY`를 저장합니다.
+- 값을 저장한 뒤 Redeploy합니다.
+- 열쇠 값은 README에 절대 적지 않습니다.
+- `.env`는 저장소에 올리지 않습니다(`.gitignore`에 포함).
