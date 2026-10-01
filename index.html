@@ -1,6 +1,15 @@
 <!doctype html>
 <html lang="ko">
 <head>
+  <!-- Google Tag Manager -->
+  <script>
+    (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-WDM6H3L4');
+  </script>
+  <!-- End Google Tag Manager -->
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PDF AI 비교 도우미</title>
@@ -117,6 +126,10 @@
   </style>
 </head>
 <body>
+  <!-- Google Tag Manager (noscript) -->
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WDM6H3L4"
+  height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+  <!-- End Google Tag Manager (noscript) -->
   <main>
     <h1>PDF AI 비교 도우미</h1>
     <!-- 총 개수는 data.json을 읽은 뒤 채운다 -->
@@ -170,6 +183,17 @@
   </main>
 
   <script>
+    // M17: GTM이 읽는 데이터 영역을 준비한다
+    window.dataLayer = window.dataLayer || [];
+
+    // M17: 일반 이벤트 쪽지를 dataLayer에 한 장 넣는 함수
+    function pushEvent(eventName, params = {}) {
+      window.dataLayer.push({ event: eventName, ...params });
+    }
+
+    // M17: filter_candidates 중복 방지용 상태
+    let filterEventTimer = null;
+    let lastFilterEventKey = null;
     // 지금 AI가 추천한 도구 이름 (없으면 null)
     let recommendedName = null;
 
@@ -226,6 +250,26 @@
       link.rel = "noopener noreferrer";
       // 링크 글자를 넣는다
       link.textContent = "원래 화면 보기";
+      // M17: 원래 화면 보기를 누른 순간 select_item을 한 번 보낸다
+      link.addEventListener("click", () => {
+        const itemListName = item.name === recommendedName ? "ai_recommendation" : "filtered_list";
+
+        // 이전 전자상거래 값이 섞이지 않게 먼저 비운다
+        window.dataLayer.push({ ecommerce: null });
+
+        window.dataLayer.push({
+          event: "select_item",
+          ecommerce: {
+            item_list_name: itemListName,
+            items: [
+              {
+                item_name: item.name,
+                price: item.price,
+              },
+            ],
+          },
+        });
+      });
 
       // 제목·목록·링크를 카드에 붙인다
       li.append(title, dl, link);
@@ -375,6 +419,28 @@
           aiResult.hidden = false;
         }
 
+        // M17: 입력이 잠깐 멈춘 뒤 filter_candidates를 한 번만 보내는 함수
+        function queueFilterCandidatesEvent(budget, citation, resultCount) {
+          const safeBudget = budget === null ? "" : budget;
+          const key = JSON.stringify([safeBudget, citation]);
+
+          // 이미 보낸 budget·citation 조합이면 다시 보내지 않는다
+          if (key === lastFilterEventKey) return;
+
+          // 빠르게 입력하는 동안 생긴 이전 예약은 취소한다
+          clearTimeout(filterEventTimer);
+
+          // 입력이 500ms 멈춘 뒤 현재 결과 개수와 함께 한 번 보낸다
+          filterEventTimer = setTimeout(() => {
+            pushEvent("filter_candidates", {
+              budget: safeBudget,
+              citation,
+              result_count: resultCount,
+            });
+            lastFilterEventKey = key;
+          }, 500);
+        }
+
         // 지금 입력된 조건으로 후보를 다시 계산해 그리는 함수 ([적용]과 값 변경이 같이 쓴다)
         function applyFilter() {
           // 조건이 바뀌었으니 이전 추천은 지운다
@@ -399,6 +465,8 @@
           markSort("asc");
           // 개수를 "조건에 맞는 N개 / 전체 M개"로 적는다
           countEl.textContent = "조건에 맞는 " + shown.length + "개 / 전체 " + items.length + "개";
+          // M17: 같은 조건은 중복하지 않고, 입력이 멈춘 뒤 현재 후보 수를 한 번 보낸다
+          queueFilterCandidatesEvent(budget, citation, shown.length);
 
           // 후보가 있으면 안내를 숨기고 끝낸다
           if (shown.length > 0) {
@@ -518,19 +586,46 @@
               aiResult.replaceChildren(nameEl, list);
               // 결과 칸을 보여 준다
               aiResult.hidden = false;
+              // M17: 추천 성공 결과가 화면에 뜬 순간 한 번 보낸다
+              pushEvent("request_recommendation", {
+                candidate_count: candidates.length,
+                result_status: "success",
+                recommended_name: data.name,
+              });
             } else if (data.status === "unverified" || data.status === "ok") {
               // 후보 표와 맞지 않는 추천은 보여 주지 않는다
               showAiNote("추천을 확인하지 못했습니다");
+              // M17: 실패 안내가 화면에 뜬 순간 한 번 보낸다
+              pushEvent("request_recommendation", {
+                candidate_count: candidates.length,
+                result_status: "error",
+                recommended_name: "",
+              });
             } else if (data.status === "no_candidates") {
               // 서버에서도 후보가 없으면 기존 안내를 보여 준다
               applyFilter();
             } else {
               // 호출 실패·요청 한도 초과·서버 오류
               showAiNote("잠시 뒤 다시 눌러 주세요");
+              // M17: 실패 안내가 화면에 뜬 순간 한 번 보낸다
+              pushEvent("request_recommendation", {
+                candidate_count: candidates.length,
+                result_status: "error",
+                recommended_name: "",
+              });
             }
           } catch (err) {
             // 네트워크 오류 (조건이 바뀌지 않았을 때만 안내한다)
-            if (myId === requestId) showAiNote("잠시 뒤 다시 눌러 주세요");
+            if (myId === requestId) {
+              showAiNote("잠시 뒤 다시 눌러 주세요");
+
+              // M17: 네트워크 실패 안내가 화면에 뜬 순간 한 번 보낸다
+              pushEvent("request_recommendation", {
+                candidate_count: candidates.length,
+                result_status: "error",
+                recommended_name: "",
+              });
+            }
           } finally {
             // 단추 문구를 되돌린다
             recommendBtn.textContent = "이 조건으로 추천받기";
